@@ -4,16 +4,16 @@ class ProductsController < ApplicationController
 
   # GET /products or /products.json
   def index
-    @products = Product.all
+    @products = Product.all.includes(:accessories)
     respond_to do |format|
-      format.json { render json: { products: @products } }
+      format.json { render json: { products: @products }, include: :accessories }
     end
   end
 
   # GET /products/1 or /products/1.json
   def show
     respond_to do |format|
-      format.json { render json: { product: @product } }
+      format.json { render json: { product: @product }, include: :accessories }
     end
   end
 
@@ -70,13 +70,21 @@ class ProductsController < ApplicationController
   private
     # Use callbacks to share common setup or constraints between actions.
     def set_product
-      @product = Product.find(params.expect(:id))
+      @product = Product.includes(:accessories).find(params.expect(:id))
       rescue ActiveRecord::RecordNotFound => e
         render json: { error: e.message }, status: :not_found
     end
 
     # Only allow a list of trusted parameters through.
     def product_params
-      params.expect(product: [ :name, :price ])
+      # 1. Require the top-level key :product
+      # 2. Permit the simple attributes: :name, :price
+      # 3. Permit the nested attributes key :accessories_attributes, 
+      #    followed by an array listing the attributes of the Accessory model.
+      params.require(:product).permit(
+        :name, 
+        :price, 
+        accessories_attributes: [:name, :price]
+      )
     end
 end
